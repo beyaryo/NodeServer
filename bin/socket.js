@@ -1,9 +1,29 @@
-module.exports = function() {
-    handleSocket = function(socket){
+var Gateway = mongoose.model('gateway')
+    require('./tools.js')()
 
+module.exports = () => {
+    handleSocket = (socket) => {
+        socket.on('gateway_join', (codeGw, ip, bssid) => {
+            new Promise((resolve, reject) => {
+                resolve(Gateway.findOneAndUpdate({
+                    code: codeGw,
+                    registered: true
+                }, {
+                    $set: {
+                        ip: ip,
+                        bssid: bssid
+                    }
+                }, {new: true}).exec())
+            })
+            .then((gw) => {
+                if(!gw) return
+
+                saveFlag(FLAG_GATEWAY, `Gateway <b>${gw.name}<b/> connected`, undefined, codeGw)
+            })
+        })
     }
 
-    dummy = function(gatewayCode){
+    dummy = (gatewayCode) => {
         var sensor = new Sensor()
         sensor.temp = randomInt(0, 100)
         sensor.hum = randomInt(0, 100)
@@ -12,10 +32,10 @@ module.exports = function() {
         sensor.bat = randomInt(0, 100)
         sensor.fuzzy = randomInt(0, 100)
         sensor.gateway = gatewayCode
-        this.gatewayData(sensor)
+        gatewayData(sensor)
     }
 
-    gatewayData = function(data){
+    gatewayData = (data) => {
         var sensor = new Sensor()
         sensor.temp = data.temp
         sensor.hum = data.hum
@@ -26,20 +46,20 @@ module.exports = function() {
         sensor.gateway = data.gateway
 
         sensor.save((err) => {
-            if(err) console.log(`Something went wrong ${err.message}`)
+            if(err) print(`Something went wrong ${err.message}`)
             else {
-                var category = this.fuzzyCategory(sensor.fuzzy)
+                var category = fuzzyCategory(sensor.fuzzy)
             }
         })
     }
 
-    fuzzyCategory = function(value){
+    fuzzyCategory = (value) => {
         if(value <= 40) return 0;
         else if(value <= 63) return 1;
         else return 2;
     }
 
-    randomInt = function(min, max){
+    randomInt = (min, max) => {
         return Math.floor(Math.random()*(max-min+1)+min)
     }
 }

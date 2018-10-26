@@ -1,4 +1,4 @@
-module.exports = function() {
+module.exports = () => {
     
     FLAG_GATEWAY = "Gateway"
     FLAG_LOCK = "Lock"
@@ -6,7 +6,9 @@ module.exports = function() {
     FLAG_ALERT = "Alert"
     FLAG_AGGR = "Aggregate"
 
-    credential = function(res, req){
+    print = (message) => { console.log(message) }
+
+    credential = (res, req) => {
         var token = req.get("xap-key")
 
         if(token == undefined){
@@ -22,7 +24,7 @@ module.exports = function() {
         })
     }
 
-    returnRes = function(res, msg, data, code){
+    returnRes = (res, msg, data, code) => {
         if(code == null) code = 200
 
         res.status(code).json({
@@ -31,11 +33,11 @@ module.exports = function() {
         })
     }
 
-    credentialNotValid = function(res){
+    credentialNotValid = (res) => {
         returnRes(res, "Credential is not valid!", undefined, 401)
     }
 
-    saveFlag = function(type, desc, additional, gwCode){
+    saveFlag = (type, desc, additional, gwCode) => {
         mongoose.model('flag').create({
             type: type,
             desc: desc,
@@ -44,7 +46,7 @@ module.exports = function() {
         })
     }
 
-    aggregating = function(){
+    aggregating = () => {
         
         var now = new Date()
         var pipeline = [
@@ -76,7 +78,7 @@ module.exports = function() {
                 item.bat = roundNum(item.bat)
                 var desc = `Temperature : ${item.temp}, Humidity: ${item.hum}, CO : ${item.co}, Smoke : ${item.smoke}, Battery Level : ${item.bat}`
 
-                this.saveFlag(this.FLAG_AGGR, desc, item.fuzzy, item._id)
+                saveFlag(FLAG_AGGR, desc, item.fuzzy, item._id)
                 mongoose.model('sensor').deleteMany({
                     $and: [
                         {gateway : "usa87"},
@@ -90,7 +92,7 @@ module.exports = function() {
         })
     }
 
-    roundNum = function(number){
+    roundNum = (number) => {
         return (Math.round(number * 100)/100).toFixed(2)
     }
 }
