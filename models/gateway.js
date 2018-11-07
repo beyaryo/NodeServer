@@ -10,10 +10,11 @@ var schema = new mongoose.Schema({
     bssid: String,
     registered: {type: Boolean, "default": false},
     registeredBy: {type: mongoose.Schema.Types.ObjectId, ref: 'user'},
-    accesible: [{type: mongoose.Schema.Types.ObjectId, ref: 'user'}]
+    accesible: [{type: mongoose.Schema.Types.ObjectId, ref: 'user'}],
+    createdAt: Date
 }, {
     collection: "gateway",
-    timestamps: true
+    timestamps: false
 });
 
 schema.methods.toJSON = function(){

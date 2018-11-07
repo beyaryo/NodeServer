@@ -1,10 +1,11 @@
 module.exports = () => {
     
     FLAG_GATEWAY = "Gateway"
-    FLAG_LOCK = "Lock"
+    FLAG_AP = "AP"
     FLAG_TWITTER = "Twitter"
     FLAG_ALERT = "Alert"
     FLAG_AGGR = "Aggregate"
+    FLAG_SENSOR = "Sensor"
 
     print = (message) => { console.log(message) }
 
@@ -37,12 +38,14 @@ module.exports = () => {
         returnRes(res, "Credential is not valid!", undefined, 401)
     }
 
-    saveFlag = (type, desc, additional, gwCode) => {
+    saveFlag = (type, desc, gwCode, apCode, additional) => {
         mongoose.model('flag').create({
             type: type,
             desc: desc,
+            gateway: gwCode,
+            ap: apCode,
             additional: additional,
-            gateway: gwCode
+            createdAt: new Date()
         })
     }
 
@@ -55,7 +58,8 @@ module.exports = () => {
             },
             {
                 $group: {
-                    _id: "$gateway",
+                    _id: "$ap",
+                    gw: {$last: "$gateway"},
                     temp: {$avg: "$temp"},
                     hum: {$avg: "$hum"},
                     co: {$avg: "$co"},
@@ -71,28 +75,71 @@ module.exports = () => {
         })
         .then((results) => {
             results.forEach((item) => {
+                if(!item.gw) return
+
                 item.temp = roundNum(item.temp)
                 item.hum = roundNum(item.hum)
                 item.co = roundNum(item.co)
-                item.smoke = roundNum(item.smoke)
+                item.smoke = roundNum(item.co2)
                 item.bat = roundNum(item.bat)
-                var desc = `Temperature : ${item.temp}, Humidity: ${item.hum}, CO : ${item.co}, Smoke : ${item.smoke}, Battery Level : ${item.bat}`
+                var desc = `Temperature : ${item.temp}, Humidity: ${item.hum}, CO : ${item.co}, CO2 : ${item.co2}, Battery Level : ${item.bat}`
 
-                saveFlag(FLAG_AGGR, desc, item.fuzzy, item._id)
+                saveFlag(FLAG_AGGR, desc, item.gw, item._id, item.fuzzy)
                 mongoose.model('sensor').deleteMany({
                     $and: [
-                        {gateway : "usa87"},
+                        {gateway : item.gw},
                         {createdAt : {$lte : now}},
                     ]
                 }).exec();
             })
+
+            // Delete all data in collection Flag
+            // with undefinied gateway value
+            mongoose.model('flag').deleteMany({gateway: undefined}).exec()
         })
         .catch((err) => {
-            console.log(`Error in aggregateByCode ${err.message}`)
+            print(`Error in aggregateByCode ${err.message}`)
         })
     }
 
     roundNum = (number) => {
         return (Math.round(number * 100)/100).toFixed(2)
+    }
+
+    postToTwitter = (sensor) => {
+        var yesterday = new Date()
+        yesterday.setDate(yesterday.getDate() - 1)
+
+        new Promise((resolve, reject) => {
+            resolve(mongoose.model('flag').find({
+                gateway: sensor.gateway,
+                type: FLAG_TWITTER,
+                createdAt: {$gte: yesterday}
+            }).exec())
+        })
+        .then((flags) => {
+            if(flags.length <= 0) return mongoose.model('gateway')
+                .findOne({code: sensor.gateway}).exec()
+        })
+        .then((gateway) => {
+            if(!gateway) return
+            else if(gateway.lat == null || gateway.lat == 0) return
+
+            var message = `Fire happened on '${gateway.addr}', Coordinat ${gateway.lat}, ${gateway.lng}`
+
+            // Do post to twitter here
+
+            // Save twitter flag
+            mongoose.model('flag').create({
+                type: FLAG_TWITTER,
+                desc: message,
+                gateway: sensor.gateway,
+                ap: sensor.ap,
+                createdAt: new Date()
+            })
+        })
+        .catch((err) => {
+            print(`Error in postToTwitter ${err.message}`)
+        })
     }
 }

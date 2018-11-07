@@ -22,6 +22,7 @@ router.get('/', (req, res, next) => {
 router.post('/create', (req, res, next) => {
     var gw = new Gateway()
     gw.code = req.body.code
+    gw.createdAt = new Date()
 
     gw.save().then(() => {
         returnRes(res, "Gateway successfully created!")
@@ -46,7 +47,7 @@ router.post('/register', (req, res, next) => {
         }, {new:true})
         .then((gw) => {
             if(gw) {
-                saveFlag(FLAG_GATEWAY, `Gateway <b>${gw.name}<b/> registered`, undefined, gw.code)
+                saveFlag(FLAG_GATEWAY, `Gateway <b>${gw.name}<b/> registered`, gw.code)
                 returnRes(res, "Gateway successfully registered!")
             }
             else returnRes(res, "Gateway has been registered!", undefined, 400)
@@ -90,7 +91,7 @@ router.post('/grant', (req, res, next) => {
             $addToSet: {accesible: result._id}
         }).then((gw) => {
             if(gw) {
-                saveFlag(FLAG_GATEWAY, `User <b>${result.email}</b> have been granted permission`, undefined, gw.code)
+                saveFlag(FLAG_GATEWAY, `User <b>${result.email}</b> have been granted permission`, gw.code)
                 returnRes(res, "Permission granted")
             }
             else returnRes(res, "User has been granted permission", undefined, 400)
@@ -118,7 +119,7 @@ router.post('/revoke', (req, res, next) => {
             $pull: {accesible: result._id}
         }).then((gw) => {
             if(gw){
-                saveFlag(FLAG_GATEWAY, `User <b>${result.email}</b> permission's revoked`, undefined, gw.code)
+                saveFlag(FLAG_GATEWAY, `User <b>${result.email}</b> permission's revoked`, gw.code)
                 returnRes(res, "Permission revoked")
             }
             else returnRes(res, "User does not has permission", undefined, 400)

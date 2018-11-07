@@ -9,7 +9,7 @@ var app = require('../app')
 
 // connect to db server
 mongoose.connect(config.database, {useNewUrlParser: true}, 
-    function (error) {
+    (error) => {
         if (error) print(`DB error => ${error}`);
         else print(`Db url ${config.database.split("@")[1]}`); 
     }
@@ -23,8 +23,8 @@ var server = app.listen( process.env.PORT || 3000, () => {
 // listening socket
 var io = socketIO.listen(server);
 
-io.on('connection', function (socket) {
-    handleSocket(socket);
+io.on('connection', (socket) => {
+    handleSocket(io, socket);
 });
 
 // setInterval(() => {
@@ -32,10 +32,6 @@ io.on('connection', function (socket) {
     // console.log("Requesting self again in 25 minutes");
 // }, (1000 * 60 * 25 * 1));
 
-// setInterval(() => {
-//     dummy("usa87")
-// }, (1000 * 13 * 1 * 1)); // mili * second * minute * hour
-
-// setInterval(() => {
-//     aggregating()
-// }, (1000 * 60 * 1 * 1)); // mili * second * minute * hour
+setInterval(() => {
+    aggregating()
+}, (1000 * 60 * 60 * 6)); // mili * second * minute * hour

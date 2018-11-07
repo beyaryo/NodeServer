@@ -17,10 +17,11 @@ var schema = new mongoose.Schema({
     token: String,
     tokenFirebase: String,
     hash: String,                   // encrypted password
-    salt: String                    // key to decrypt hash to password
+    salt: String,                   // key to decrypt hash to password
+    createdAt: Date
 }, {
     collection: "user",
-    timestamps: true
+    timestamps: false
 });
 
 schema.methods.isPasswordValid = function(password) {

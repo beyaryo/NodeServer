@@ -35,6 +35,7 @@ router.post('/register', function(req, res, next){
     user.name = req.body.name
     user.phone = req.body.phone
     user.setPassword(req.body.password)
+    user.createdAt = new Date()
 
     user.save().then(() => {
         returnRes(res, "User successfully created!")

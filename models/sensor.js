@@ -5,13 +5,15 @@ var schema = new mongoose.Schema({
     temp: Number,
     hum: Number,
     co: Number,
-    smoke: Number,
+    co2: Number,
     bat: Number,
     fuzzy: Number,
-    gateway: String
+    gateway: String,
+    ap: String,
+    createdAt: Date
 }, {
     collection: "sensor",
-    timestamps: true
+    timestamps: false
 });
 
 schema.methods.toJSON = function(){
@@ -19,10 +21,11 @@ schema.methods.toJSON = function(){
         temp: this.temp,
         hum: this.hum,
         co: this.co,
-        smoke: this.smoke,
+        co2: this.co2,
         bat: this.bat,
         fuzzy: this.fuzzy,
-        gateway: this.gateway
+        gateway: this.gateway,
+        ap: this.ap
     };
 };
 

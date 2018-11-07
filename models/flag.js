@@ -4,15 +4,23 @@ var mongoose = require('mongoose')
 var schema = new mongoose.Schema({
     type: { 
         type: String,
-        enum: ['Lock', 'Twitter', 'Alert', 'Aggregate', 'Gateway'],
+        enum: ['AP', 'Twitter', 'Alert', 'Aggregate', 'Gateway', 'Sensor'],
         default: 'Aggregate'
      },
     desc: String,
+    // Alert => [0 (Warning), 1 (Dangerous)]
+    // Aggregate => [fuzzy value]
     additional: String,
-    gateway: String
+    // AP => [Lock, Valve, Sensor Node]
+    // Alert => [Sensor Node]
+    // Aggregate => [Sensor Node]
+    // Sensor => [Sensor Node]
+    ap: String,
+    gateway: String,
+    createdAt: Date
 }, {
     collection: "flag",
-    timestamps: true
+    timestamps: false
 });
 
 schema.methods.toJSON = function(){
@@ -25,3 +33,10 @@ schema.methods.toJSON = function(){
 };
 
 mongoose.model('flag', schema);
+
+// AP => [paired, unpaired, connected or not]
+// Twitter => [delay a day between actions]
+// Alert => [delay 10 minutes or 3 minutes between actions]
+// Aggregate => [aggregate of sensor value within 6 hours]
+// Gateway => [connected, disconnected]
+// Sensor => [delay a day between actions]

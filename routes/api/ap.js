@@ -18,6 +18,7 @@ router.get('/', (req, res, next) => {
 router.post('/create', (req, res, next) => {
     var ap = new Ap()
     ap.code = req.body.code
+    ap.createdAt = new Date()
 
     ap.save().then(() => {
         returnRes(res, "Action Point successfully created!")
@@ -39,15 +40,13 @@ router.post('/info', (req, res, next) => {
 })
 
 router.post('/pair', (req, res, next) => {
-    var userId = undefined
 
     credential(res, req)
     .then((result) => {
-        user = result._id
         return Gateway.findOne({code: req.body.gateway}).exec()
     })
     .then((result) => {
-        if(result == null) return returnRes(res, "Bad gateway code!", undefined, 400)
+        if(!result) return returnRes(res, "Bad gateway code!", undefined, 400)
 
         Ap.findOneAndUpdate({
             code: req.body.code,
@@ -55,14 +54,14 @@ router.post('/pair', (req, res, next) => {
         }, {
             $set: {
                 name: req.body.name,
-                pairedBy: userId,
+                pairedBy: result.registeredBy,
                 gateway: result.code,
                 registered: true
             }
         }, {new: true})
         .then((ap) => {
             if(ap) {
-                saveFlag(FLAG_LOCK, `Action point <b>${ap.name}<b/> paired`, undefined, result.code)
+                saveFlag(FLAG_AP, `Action point <b>${ap.name}<b/> paired`, result.code, ap.code)
                 returnRes(res, "Action point successfully paired!")
             }
             else returnRes(res, "Action point not found!", undefined, 400)
@@ -88,7 +87,7 @@ router.post('/unpair', (req, res, next) => {
         }, {new: true})
         .then((ap) => {
             if(ap) {
-                saveFlag(FLAG_LOCK, `Action point <b>${ap.name}<b/> unpaired`, undefined, result.code)
+                saveFlag(FLAG_AP, `Action point <b>${ap.name}<b/> unpaired`, result.code, ap.code)
                 returnRes(res, "Action point successfully unpaired!")
             }
             else returnRes(res, "Action point not found!", undefined, 400)

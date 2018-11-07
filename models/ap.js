@@ -6,10 +6,11 @@ var schema = new mongoose.Schema({
     name: String,
     registered: {type: Boolean, "default": false},
     pairedBy: {type: Schema.Types.ObjectId, ref: 'user'},
-    gateway: String
+    gateway: String,
+    createdAt: Date
 }, {
     collection: "action_point",
-    timestamps: true
+    timestamps: false
 });
 
 schema.methods.toJSON = function(){
