@@ -1,5 +1,4 @@
 var mongoose = require('mongoose')
-    Schema = mongoose.Schema;
 
 var schema = new mongoose.Schema({
     temp: Number,
@@ -14,7 +13,7 @@ var schema = new mongoose.Schema({
 }, {
     collection: "sensor",
     timestamps: false
-});
+})
 
 schema.methods.toJSON = function(){
     return {
@@ -26,7 +25,7 @@ schema.methods.toJSON = function(){
         fuzzy: this.fuzzy,
         gateway: this.gateway,
         ap: this.ap
-    };
-};
+    }
+}
 
-mongoose.model('sensor', schema);
+mongoose.model('sensor', schema)

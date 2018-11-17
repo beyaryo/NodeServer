@@ -1,5 +1,4 @@
 var mongoose = require('mongoose')
-    Schema = mongoose.Schema;
 
 var schema = new mongoose.Schema({
     type: { 
@@ -21,7 +20,7 @@ var schema = new mongoose.Schema({
 }, {
     collection: "flag",
     timestamps: false
-});
+})
 
 schema.methods.toJSON = function(){
     return {
@@ -29,10 +28,10 @@ schema.methods.toJSON = function(){
         desc: this.desc,
         additional: this.additional,
         gateway: this.gateway
-    };
-};
+    }
+}
 
-mongoose.model('flag', schema);
+mongoose.model('flag', schema)
 
 // AP => [paired, unpaired, connected or not]
 // Twitter => [delay a day between actions]

@@ -15,7 +15,7 @@ var schema = new mongoose.Schema({
 }, {
     collection: "gateway",
     timestamps: false
-});
+})
 
 schema.methods.toJSON = function(){
     return {
@@ -25,8 +25,8 @@ schema.methods.toJSON = function(){
         lng: this.lng,
         addr: this.addr,
         registeredBy: this.registeredBy
-    };
-};
+    }
+}
 
 schema.methods.toJSONDetail = function(){
     return {
@@ -39,7 +39,7 @@ schema.methods.toJSONDetail = function(){
         bssid: this.bssid,
         registeredBy: this.registeredBy,
         accesible: this.accesible
-    };
-};
+    }
+}
 
-mongoose.model('gateway', schema);
+mongoose.model('gateway', schema)

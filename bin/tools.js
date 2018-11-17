@@ -9,7 +9,7 @@ module.exports = () => {
 
     print = (message) => { console.log(message) }
 
-    credential = (res, req) => {
+    credential = (req, res) => {
         var token = req.get("xap-key")
 
         if(token == undefined){
@@ -25,17 +25,19 @@ module.exports = () => {
         })
     }
 
-    returnRes = (res, msg, data, code) => {
+    resSend = (res, msg, data, code) => {
         if(code == null) code = 200
 
-        res.status(code).json({
+        var response = JSON.stringify({
             message: msg,
             data: data
         })
+
+        res.status(code).send(response)
     }
 
     credentialNotValid = (res) => {
-        returnRes(res, "Credential is not valid!", undefined, 401)
+        resSend(res, "Credential is not valid!", undefined, 401)
     }
 
     saveFlag = (type, desc, gwCode, apCode, additional) => {

@@ -1,5 +1,5 @@
 var mongoose = require('mongoose')
-    crypto = require('crypto');
+    crypto = require('crypto')
 
 var schema = new mongoose.Schema({
     email: {
@@ -22,29 +22,29 @@ var schema = new mongoose.Schema({
 }, {
     collection: "user",
     timestamps: false
-});
+})
 
 schema.methods.isPasswordValid = function(password) {
-    var hash = crypto.pbkdf2Sync(password, this.salt, 10000, 512, 'sha512').toString('hex');
-    return this.hash === hash;
-};
+    var hash = crypto.pbkdf2Sync(password, this.salt, 10000, 512, 'sha512').toString('hex')
+    return this.hash === hash
+}
 
 schema.methods.setPassword = function(password){
-    this.salt = crypto.randomBytes(16).toString('hex');
-    this.hash = crypto.pbkdf2Sync(password, this.salt, 10000, 512, 'sha512').toString('hex');
-};
+    this.salt = crypto.randomBytes(16).toString('hex')
+    this.hash = crypto.pbkdf2Sync(password, this.salt, 10000, 512, 'sha512').toString('hex')
+}
 
 schema.methods.setToken = function(){
-    this.token = crypto.randomBytes(16).toString('hex');
-};
+    this.token = crypto.randomBytes(16).toString('hex')
+}
 
 schema.methods.toJSON = function(){
     return {
         email: this.email,
         name: this.name,
         phone: this.phone
-    };
-};
+    }
+}
 
 schema.methods.jsonToken = function(){
     return {
@@ -52,16 +52,16 @@ schema.methods.jsonToken = function(){
         name: this.name,
         phone: this.phone,
         token: this.token
-    };
-};
+    }
+}
 
 schema.methods.jsonCheck = function(){
     return {
-        id: this._id,
         email: this.email,
         name: this.name,
-        phone: this.phone
-    };
-};
+        phone: this.phone,
+        createdAt: this.createdAt
+    }
+}
 
-mongoose.model('user', schema);
+mongoose.model('user', schema)

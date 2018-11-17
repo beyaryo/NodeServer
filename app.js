@@ -1,27 +1,32 @@
-var path = require('path'),
-    express = require('express'),
-    bodyParser = require('body-parser')
-    mongoose = require('mongoose');
+var path = require('path')
+    express = require('express')
+    parser = require('body-parser')
+    mongoose = require('mongoose')
 
 // Models
-require('./models/user');
-require('./models/gateway');
-require('./models/ap');
-require('./models/flag');
-require('./models/sensor');
+require('./models/user')
+require('./models/gateway')
+require('./models/ap')
+require('./models/flag')
+require('./models/sensor')
 
-var isProduction = process.env.NODE_ENV === 'production';
-var app = express();
+var rawBodySaver = function (req, res, buf, encoding) {
+    if (buf && buf.length) req.rawBody = buf.toString(encoding || 'utf8')
+}
+
+var isProduction = process.env.NODE_ENV === 'production'
+var app = express()
 
 // common config
-app.use(require('morgan')('dev'));
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(require('morgan')('dev'))
+app.use(parser.json({ verify: rawBodySaver }))
+app.use(parser.urlencoded({ verify: rawBodySaver, extended: true }))
+app.use(parser.raw({ verify: rawBodySaver, type: function () { return true } }))
+app.use(express.static(path.join(__dirname, 'public')))
 
 // view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+app.set('views', path.join(__dirname, 'views'))
+app.set('view engine', 'jade')
 
 // database configuration
 if(isProduction){
@@ -31,26 +36,26 @@ if(isProduction){
 }
 
 // import all route
-app.use(require('./routes'));
+app.use(require('./routes'))
 
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
-    var err = new Error('Not Found');
-    err.status = 404;
-    next(err);
-});
+app.use((req, res, next) => {
+    var err = new Error('Not Found')
+    err.status = 404
+    next(err)
+})
 
 // error handlers
-app.use(function(err, req, res, next) {
+app.use((err, req, res, next) => {
     // print error when in dev environment
-    if(!isProduction) console.log(err.stack);
+    if(!isProduction) console.log(err.stack)
 
-    res.status(err.status || 500);
+    res.status(err.status || 500)
 
     res.json({'errors': {
         message: err.message,
         error: err
-    }});
-});
+    }})
+})
 
-module.exports = app;
+module.exports = app

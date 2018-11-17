@@ -10,21 +10,21 @@ var app = require('../app')
 // connect to db server
 mongoose.connect(config.database, {useNewUrlParser: true}, 
     (error) => {
-        if (error) print(`DB error => ${error}`);
-        else print(`Db url ${config.database.split("@")[1]}`); 
+        if (error) print(`DB error => ${error}`)
+        else print(`Db url ${config.database.split("@")[1]}`);
     }
 );
     
 // start server...
 var server = app.listen( process.env.PORT || 3000, () => {
-    print(`Listening on port ${server.address().port}`);
-});
+    print(`Listening on port ${server.address().port}`)
+})
 
 // listening socket
 var io = socketIO.listen(server);
 
 io.on('connection', (socket) => {
-    handleSocket(io, socket);
+    handleSocket(io, socket)
 });
 
 // setInterval(() => {
