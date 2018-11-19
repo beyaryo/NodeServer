@@ -13,15 +13,10 @@ module.exports = {
     },
 
     pair(req, res, next, json){
-        var gwCode = ""
-
-        credential(req, res)
-        .then((user) => {
+        credential(req, res).then((user) => {
             return Gateway.findOne({code: json.gateway}).exec()
-        })
-        .then((gw) => {
+        }).then((gw) => {
             if(!gw) return resSend(res, "Bad gateway code!", undefined, 400)
-            gwCode = gw.code
 
             return Ap.findOneAndUpdate({
                 code: json.code,
@@ -30,23 +25,38 @@ module.exports = {
                 $set: {
                     name: json.name,
                     pairedBy: gw.registeredBy,
-                    gateway: gw.code,
+                    gateway: gw._id,
                     registered: true
                 }
-            }, {new: true}).exec()
-        })
-        .then((ap) => {
+            }, {new: true}).populate({
+                path: "gateway",
+                populate: {
+                    path: "accesible",
+                    model: "user"
+                }
+            }).exec()
+        }).then((ap) => {
             if(ap) {
-                saveFlag(FLAG_AP, `Action point <b>${ap.name}<b/> paired`, gwCode, ap.code)
+                saveFlag(FLAG_AP, `Action point <b>${ap.name}<b/> paired`, ap.gateway._id, ap._id)
                 resSend(res, "Action point successfully paired!")
+
+                var data = {
+                    flag: FCM_AP_PAIR,
+                    gateway: ap.gateway.code,
+                    code: ap.code,
+                    name: ap.name
+                }
+
+                ap.gateway.accesible.forEach((user) => {
+                    sendNotification(data, user.tokenFirebase)
+                })
             }
             else resSend(res, "Action point not found!", undefined, 400)
         }).catch(next)
     },
 
     unpair(req, res, next, json){
-        credential(req, res)
-        .then((user) => {
+        credential(req, res).then((user) => {
             return Ap.findOneAndUpdate({
                 code: json.code,
                 registered: true,
@@ -58,22 +68,43 @@ module.exports = {
                     gateway: undefined,
                     registered: false
                 }
-            }, {new: true}).exec()
+            }, {new: false}).populate({
+                path: "gateway",
+                populate: {
+                    path: "accesible",
+                    model: "user"
+                }
+            }).exec()
         }).then((ap) => {
             if(ap) {
-                saveFlag(FLAG_AP, `Action point <b>${ap.name}<b/> unpaired`, undefined, ap.code)
+                saveFlag(FLAG_AP, `Action point <b>${ap.name}<b/> unpaired`, ap.gateway._id, ap._id)
                 resSend(res, "Action point successfully unpaired!")
+
+                var data = {
+                    flag: FCM_AP_UNPAIR,
+                    gateway: ap.gateway.code,
+                    code: ap.code,
+                    name: ap.name
+                }
+
+                ap.gateway.accesible.forEach((user) => {
+                    sendNotification(data, user.tokenFirebase)
+                })
             }
             else resSend(res, "Action point not found!", undefined, 400)
         }).catch(next)
     },
 
     checkByGateway(req, res, next, json){
-        credential(req, res)
-        .then((user) => {
+        credential(req, res).then((user) => {
+            return Gateway.findOne({
+                registered: true,
+                code: json.gateway
+            }).exec()
+        }).then((gw) => {
             return Ap.find({
                 registered: true,
-                gateway: json.gateway
+                gateway: gw._id
             }).exec()
         }).then((aps) => {
             if(aps.length > 0) resSend(res, undefined, aps)
@@ -82,8 +113,7 @@ module.exports = {
     },
 
     info(req, res, next, json){
-        credential(req, res)
-        .then((user) => {
+        credential(req, res).then((user) => {
             return Ap.findOne({
                 code: json.code,
                 registered: true

@@ -7,8 +7,8 @@ var schema = new mongoose.Schema({
     co2: Number,
     bat: Number,
     fuzzy: Number,
-    gateway: String,
-    ap: String,
+    ap: {type: mongoose.Schema.Types.ObjectId, ref: 'action_point'},
+    gateway: {type: mongoose.Schema.Types.ObjectId, ref: 'gateway'},
     createdAt: Date
 }, {
     collection: "sensor",
@@ -23,8 +23,8 @@ schema.methods.toJSON = function(){
         co2: this.co2,
         bat: this.bat,
         fuzzy: this.fuzzy,
-        gateway: this.gateway,
-        ap: this.ap
+        ap: this.ap,
+        gateway: this.gateway
     }
 }
 

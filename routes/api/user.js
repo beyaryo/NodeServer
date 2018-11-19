@@ -20,9 +20,9 @@ module.exports = {
 
             if(!user){
                 msg = `${key} available!`
-                code = 400
             }else{
                 msg = `${key} has been taken!`
+                code = 400
             }
             
             resSend(res, msg, undefined, code)
@@ -63,16 +63,14 @@ module.exports = {
     },
 
     checkMe(req, res, next, json){
-        credential(req, res)
-        .then((user) => {
+        credential(req, res).then((user) => {
             resSend(res, undefined, user.jsonCheck())
         })
         .catch(next)
     },
 
     logout(req, res, next, json){
-        credential(req, res)
-        .then((user) => {
+        credential(req, res).then((user) => {
             user.token = undefined
             user.tokenFirebase = undefined
             user.save()

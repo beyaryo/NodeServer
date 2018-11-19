@@ -6,16 +6,16 @@ var schema = new mongoose.Schema({
         enum: ['AP', 'Twitter', 'Alert', 'Aggregate', 'Gateway', 'Sensor'],
         default: 'Aggregate'
      },
+     // Alert => [0 (Warning), 1 (Dangerous)]
+     // Aggregate => [fuzzy value]
     desc: String,
-    // Alert => [0 (Warning), 1 (Dangerous)]
-    // Aggregate => [fuzzy value]
-    additional: String,
     // AP => [Lock, Valve, Sensor Node]
     // Alert => [Sensor Node]
     // Aggregate => [Sensor Node]
     // Sensor => [Sensor Node]
-    ap: String,
-    gateway: String,
+    additional: String,
+    ap: {type: mongoose.Schema.Types.ObjectId, ref: 'action_point'},
+    gateway: {type: mongoose.Schema.Types.ObjectId, ref: 'gateway'},
     createdAt: Date
 }, {
     collection: "flag",

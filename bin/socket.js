@@ -3,8 +3,8 @@ var Gateway = mongoose.model('gateway')
     Flag = mongoose.model('flag')
     User = mongoose.model('user')
     Ap = mongoose.model('action_point')
+    require('./firebase.js')()
     require('./tools.js')()
-    require('./alert.js')()
 
 module.exports = () => {
     /**
@@ -18,9 +18,8 @@ module.exports = () => {
             var gateway
 
             new Promise((resolve, reject) => {
-                resolve(mongoose.model('user').findOne({token: token}).exec())
-            })
-            .then((user) => {
+                resolve(User.findOne({token: token}).exec())
+            }).then((user) => {
                 if(!user){
                     callback(401)
                     return null
@@ -34,22 +33,19 @@ module.exports = () => {
                 socket.join(room)
 
                 return Gateway.findOne({code: room}).exec()
-            })
-            .then((gw) => {
+            }).then((gw) => {
                 if(!gw){
                     callback(503)
                     return null
                 }
 
                 gateway = gw
-                return Sensor.findOne({gateway: gateway.code}).sort({createdAt:-1}).exec()
-            })
-            .then((sensor) => {
+                return Sensor.findOne({gateway: gateway._id}).sort({createdAt:-1}).exec()
+            }).then((sensor) => {
                 if(!sensor) callback(200, gateway.ip, gateway.bssid, 0, 0, 0, 0, 0, 0)
                 else callback(200, gateway.ip, gateway.bssid, sensor.temp, sensor.hum, 
                     sensor.co, sensor.smoke, sensor.bat, sensor.fuzzy);
-            })
-            .catch((err) => {
+            }).catch((err) => {
                 callback(503)
                 print(`Error in client_join ${err.message}`)
             })
@@ -59,8 +55,6 @@ module.exports = () => {
         // gateway will create room depend on gateway code and update
         // it's ip and bssid
         socket.on('gateway_join', (codeGw, ip, bssid) => {
-            var gateway
-
             new Promise((resolve, reject) => {
                 // Update Gateway
                 resolve(Gateway.findOneAndUpdate({
@@ -74,11 +68,9 @@ module.exports = () => {
                 }, {new: true})
                 .populate("registeredBy")
                 .populate("accesible").exec())
-            })
-            .then((gw) => {
+            }).then((gw) => {
                 if(!gw) return
 
-                gateway = gw
                 // Check if this device has joined a room before
                 if(socket.room) socket.leave(socket.room)
 
@@ -86,87 +78,63 @@ module.exports = () => {
                 socket.isGateway = true
 
                 // Create room
-                socket.room = codeGw
-                socket.join(codeGw)
-                saveFlag(FLAG_GATEWAY, `Gateway <b>${gw.name}<b/> connected`, codeGw)
+                socket.room = gw.code
+                socket.join(gw.code)
+                saveFlag(FLAG_GATEWAY, `Gateway <b>${gw.name}<b/> connected`, gw._id)
 
-                return User.findOne({email: gw.registeredBy.email}).exec()
-            })
-            .then((master) => {
-                if(!master) return
+                var data = {
+                    flag: FCM_GATEWAY_ON,
+                    gateway: gw.code,
+                    name: gw.name,
+                    ip: ip,
+                    bssid: bssid
+                }
 
-                var data = {ip: ip, bssid: bssid},
-                    flag = "GATEWAY_ON"
-    
-                sendNotif(JSON.stringify(data), flag, master.tokenFirebase, codeGw)
-    
-                gateway.accesible.forEach((accesor) => {
-                    User.findOne({email: accesor.email}).then((user) => {
-                        sendNotif(JSON.stringify(data), flag, user.tokenFirebase, codeGw)
-                    })
+                sendNotification(data, gw.registeredBy.tokenFirebase)
+                gw.accesible.forEach((user) => {
+                    sendNotification(data, user.tokenFirebase)
                 })
-            })
-            .catch((err) => {
+            }).catch((err) => {
                 print(`Error in gateway_join ${err.message}`)
             })
         })
 
         socket.on('gateway_data', (data) => {
-            var sensor = new Sensor()
-            sensor.temp = data.temp
-            sensor.hum = data.hum
-            sensor.co = data.co
-            sensor.co2 = data.co2
-            sensor.bat = data.bat
-            sensor.fuzzy = data.fuzzy
-            sensor.gateway = socket.room
-            sensor.ap = data.ap
-            sensor.createdAt = new Date()
-            
-            // Push sensor data to owners of gateway via socket    
-            io.sockets.in(socket.room).emit('sensor_value', sensor);
+            print(`Data from ap => ${data.ap}`)
 
-            // Save sensor data
-            sensor.save((err) => {
-                if(err) print(`Something went wrong ${err.message}`)
-                else fuzzyAlert(sensor)
-            })
-
-            // Check sensor condition
-            isSensorGood(sensor)
-
-            // Check if sensor node paired
             new Promise((resolve, reject) => {
-                // Update Gateway
-                resolve(Ap.findOne({code: sensor.ap, registered: false}).exec())
-            })
-            .then((ap) => {
-                if(!ap) return
-
-                return Gateway.findOne({code: sensor.gateway, registered: true})
-                    .populate("registeredBy").exec()
-            })
-            .then((gw) => {
-                if(!gw) return
-
-                // Register sensor node
-                Ap.findOneAndUpdate({
-                    code: sensor.ap,
-                    registered: false
-                }, {
-                    $set: {
-                        name: "Sensor node",
-                        pairedBy: gw.registeredBy,
-                        gateway: gw.code,
-                        registered: true
-                    }
-                }, {new: true})
-                .then((ap) => {
-                    if(ap) saveFlag(FLAG_AP, `Action point <b>${ap.name}<b/> paired`, ap.gateway, ap.code)
-                })
-            })
-            .catch((err) => {
-                print(`Error in gateway_data ${err.message}`)
+                resolve(Ap.findOne({
+                    code: data.ap,
+                    registered: true
+                }).populate("gateway").exec())
+            }).then((ap) => {
+                if(ap){
+                    var sensor = new Sensor()
+                    sensor.temp = data.temp
+                    sensor.hum = data.hum
+                    sensor.co = data.co
+                    sensor.co2 = data.co2
+                    sensor.bat = data.bat
+                    sensor.fuzzy = data.fuzzy
+                    sensor.gateway = ap.gateway._id
+                    sensor.ap = ap._id
+                    sensor.createdAt = new Date()
+                    
+                    // Save sensor data
+                    sensor.save((err) => {
+                        if(err) print(`Something went wrong ${err.message}`)
+                        else fuzzyAlert(sensor)
+                    })
+            
+                    // Push sensor data to owners of gateway via socket    
+                    io.sockets.in(socket.room).emit('sensor_value', sensor, socket.room, ap.code)
+        
+                    // Check sensor condition
+                    isSensorGood(sensor)
+                }else{
+                    // Save sensor node if node is not registered yet
+                    saveSensorNode(socket.room, data.ap)
+                }
             })
         })
 
@@ -179,26 +147,48 @@ module.exports = () => {
                     code: socket.room,
                     registered: true
                 }).exec())
-            })
-            .then((gw) => {
-                if(!gw) return
-
-                saveFlag(FLAG_GATEWAY, `Gateway <b>${gw.name}<b/> disconnected`, socket.room)
-            })
-            .catch((err) => {
+            }).then((gw) => {
+                if(gw) saveFlag(FLAG_GATEWAY, `Gateway <b>${gw.name}<b/> disconnected`, gw._id)
+            }).catch((err) => {
                 print(`Error in disconnect ${err.message}`)
             })
+        })
+    }
+
+    saveSensorNode = (codeGw, codeAp) => {
+        new Promise((resolve, reject) => {
+            // Update Gateway
+            resolve(Gateway.findOne({code: codeGw, registered: true})
+                .populate("registeredBy").exec())
+        }).then((gw) => {
+            if(!gw) return
+
+            return Ap.findOneAndUpdate({
+                code: codeAp,
+                registered: false
+            }, {
+                $set: {
+                    name: "Sensor node",
+                    pairedBy: gw.registeredBy,
+                    gateway: gw._id,
+                    registered: true
+                }
+            }, {new: true}).exec()
+        }).then((ap) => {
+            if(ap) saveFlag(FLAG_AP, `Action point <b>${ap.name}<b/> paired`, ap.gateway, ap._id)
+        }).catch((err) => {
+            print(`Error in gateway_data ${err.message}`)
         })
     }
 
     fuzzyAlert = (sensor) => {
         if(sensor.fuzzy > 63){
             // Do something when fuzzy is high
-            checkAlertTime(sensor.gateway, sensor.ap, 1, sensor.fuzzy);
-            postToTwitter(sensor);
+            checkAlertTime(sensor, 1)
+            postToTwitter(sensor)
         }else if(sensor.fuzzy > 40){
             // Do something when fuzzy is medium
-            checkAlertTime(sensor.gateway, sensor.ap, 0, sensor.fuzzy);
+            checkAlertTime(sensor, 0)
         }else{
             // Do something when fuzzy is low
         }
@@ -218,12 +208,14 @@ module.exports = () => {
         if(sensor.co2 < 0 || sensor.co2 > 100) brokenSensor.push("CO2")
 
         if(brokenSensor.length > 0){
-            Flag.find({
-                gateway: sensor.gateway,
-                type: FLAG_SENSOR,
-                createdAt: {$gte: date}
-            })
-            .then((flags) => {
+            new Promise((resolve, reject) => {
+                resolve(Flag.find({
+                    gateway: sensor.gateway,
+                    ap: sensor.ap,
+                    type: FLAG_SENSOR,
+                    createdAt: {$gte: date}
+                }).exec())
+            }).then((flags) => {
                 if(flags.length <= 0){
                     var str = ""
 
@@ -233,15 +225,95 @@ module.exports = () => {
                     }
 
                     saveFlag(FLAG_SENSOR, `Your ${str} sensor(s) is not in good condition, please check it`, sensor.gateway, sensor.ap)
+
+                    return Gateway.findById(sensor.gateway)
+                        .populate("registeredBy")
+                        .populate("accesible").exec()
                 }
-            })
-            .catch((err) => {
+            }).then((gw) => {
+                if(!gw) return
+
+                var data = {
+                    flag: FCM_SENSOR_ERROR,
+                    gateway: gw.code,
+                    name: gw.name
+                }
+
+                sendNotification(data, gw.registeredBy.tokenFirebase)
+                gw.accesible.forEach((user) => {
+                    sendNotification(data, user.tokenFirebase)
+                })
+            }).catch((err) => {
                 print(`Error in isSensorGood ${err.message}`)
             })
         }
     }
 
-    randomInt = (min, max) => {
-        return Math.floor(Math.random()*(max-min+1)+min)
+    checkAlertTime = (sensor, category) => {
+        var date = new Date(), categoryString = "", fcmFlag = "", actionPoint
+    
+        if(category == 1) {
+            // Do something when category dangerous
+
+            // To check if there is flag's
+            // contain those criteria within 3 minutes
+            date.setMinutes(date.getMinutes() - 3)
+            categoryString = "Dangerous"
+            fcmFlag = FCM_ALERT_DANGER
+        }else {
+            // Do something when category warning
+            
+            // To check if there is flag's
+            // contain those criteria within 10 minutes
+            date.setMinutes(date.getMinutes() - 10)
+            categoryString = "Warning"
+            fcmFlag = FCM_ALERT_WARNING
+        }
+
+        new Promise((resolve, reject) => {
+            resolve(Ap.findById(sensor.ap).populate({
+                path: 'gateway',
+                populate: [
+                    {
+                        path: 'registeredBy',
+                        model: 'user'
+                    },
+                    {
+                        path: 'accesible',
+                        model: 'user'
+                    },
+                ]
+            }).exec())
+        }).then((ap) => {
+            if(!ap) return
+            actionPoint = ap
+
+            return Flag.find({
+                gateway: ap.gateway._id,
+                ap: ap._id,
+                type: FLAG_ALERT,
+                additional: category,
+                createdAt: {$gte: date}
+            }).exec()
+        }).then((flags) => {
+            if(flags.length <= 0){
+                saveFlag(FLAG_ALERT, `Your <b>${actionPoint.gateway.name}</b> is in <b>${categoryString}</b>, please check if something happened!!`, 
+                actionPoint.gateway._id, actionPoint._id, category)
+
+                var data = {
+                    flag: fcmFlag,
+                    gateway: actionPoint.gateway.code,
+                    name: actionPoint.gateway.name,
+                    fuzzy: `${sensor.fuzzy}`
+                }
+    
+                sendNotification(data, actionPoint.gateway.registeredBy.tokenFirebase)
+                actionPoint.gateway.accesible.forEach((user) => {
+                    sendNotification(data, user.tokenFirebase)
+                })
+            }
+        }).catch((err) => {
+            print(`Error in checkAlertTime ${err.message}`)
+        })
     }
 }

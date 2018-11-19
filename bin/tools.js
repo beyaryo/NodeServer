@@ -40,19 +40,18 @@ module.exports = () => {
         resSend(res, "Credential is not valid!", undefined, 401)
     }
 
-    saveFlag = (type, desc, gwCode, apCode, additional) => {
+    saveFlag = (type, desc, _idGateway, _idAp, additional) => {
         mongoose.model('flag').create({
             type: type,
             desc: desc,
-            gateway: gwCode,
-            ap: apCode,
+            gateway: _idGateway,
+            ap: _idAp,
             additional: additional,
             createdAt: new Date()
         })
     }
 
     aggregating = () => {
-        
         var now = new Date()
         var pipeline = [
             {
@@ -74,8 +73,7 @@ module.exports = () => {
 
         new Promise((resolve, reject) => {
             resolve(mongoose.model('sensor').aggregate(pipeline))
-        })
-        .then((results) => {
+        }).then((results) => {
             results.forEach((item) => {
                 if(!item.gw) return
 
@@ -86,7 +84,8 @@ module.exports = () => {
                 item.bat = roundNum(item.bat)
                 var desc = `Temperature : ${item.temp}, Humidity: ${item.hum}, CO : ${item.co}, CO2 : ${item.co2}, Battery Level : ${item.bat}`
 
-                saveFlag(FLAG_AGGR, desc, item.gw, item._id, item.fuzzy)
+                saveFlag(FLAG_AGGR, desc, item.gw, item.ap, item.fuzzy)
+
                 mongoose.model('sensor').deleteMany({
                     $and: [
                         {gateway : item.gw},
@@ -98,8 +97,7 @@ module.exports = () => {
             // Delete all data in collection Flag
             // with undefinied gateway value
             mongoose.model('flag').deleteMany({gateway: undefined}).exec()
-        })
-        .catch((err) => {
+        }).catch((err) => {
             print(`Error in aggregateByCode ${err.message}`)
         })
     }
@@ -118,16 +116,16 @@ module.exports = () => {
                 type: FLAG_TWITTER,
                 createdAt: {$gte: yesterday}
             }).exec())
-        })
-        .then((flags) => {
-            if(flags.length <= 0) return mongoose.model('gateway')
-                .findOne({code: sensor.gateway}).exec()
-        })
-        .then((gateway) => {
-            if(!gateway) return
-            else if(gateway.lat == null || gateway.lat == 0) return
+        }).then((flags) => {
+            if(flags.length <= 0) {
+                return mongoose.model('gateway').findById(sensor.gateway).exec()
+            }
+        }).then((gw) => {
+            if(!gw) return
 
-            var message = `Fire happened on '${gateway.addr}', Coordinat ${gateway.lat}, ${gateway.lng}`
+            if(gw.lat == null || gw.lat == 0) return
+
+            var message = `Fire happened on '${gw.addr}', Coordinat ${gw.lat}, ${gw.lng}`
 
             // Do post to twitter here
 

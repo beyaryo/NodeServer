@@ -6,7 +6,7 @@ var schema = new mongoose.Schema({
     registered: {type: Boolean, "default": false},
     active: {type: Boolean, "default": false},
     pairedBy: {type: mongoose.Schema.Types.ObjectId, ref: 'user'},
-    gateway: String,
+    gateway: {type: mongoose.Schema.Types.ObjectId, ref: 'gateway'},
     createdAt: Date
 }, {
     collection: "action_point",
